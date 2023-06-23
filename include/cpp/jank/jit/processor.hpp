@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <cling/Interpreter/Interpreter.h>
+#include <clang/Interpreter/Interpreter.h>
 
 #include <jank/result.hpp>
 #include <jank/runtime/context.hpp>
@@ -18,6 +18,6 @@ namespace jank::jit
     (runtime::context &rt_ctx, codegen::processor &cg_prc) const;
     void eval_string(native_string const &s) const;
 
-    std::unique_ptr<cling::Interpreter> interpreter;
+    std::unique_ptr<clang::Interpreter> interpreter;
   };
 }

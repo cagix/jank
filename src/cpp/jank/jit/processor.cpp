@@ -1,6 +1,6 @@
 #include <cstdlib>
 
-#include <cling/Interpreter/Value.h>
+#include "clang/Frontend/CompilerInstance.h"
 
 #include <jank/util/process_location.hpp>
 #include <jank/util/make_array.hpp>
@@ -50,7 +50,8 @@ namespace jank::jit
     if(boost::filesystem::exists(jank_path / "../lib/clang"))
     { return jank_path / ".."; }
 
-    return JANK_CLING_BUILD_DIR;
+    //return JANK_CLING_BUILD_DIR;
+    return none;
   }
 
   processor::processor()
@@ -69,27 +70,28 @@ namespace jank::jit
     }
     auto const &pch_path_str(pch_path.unwrap().string());
 
-    auto const llvm_resource_path(find_llvm_resource_path());
-    if(llvm_resource_path.is_none())
-    /* TODO: Better error handling. */
-    { throw std::runtime_error{ "unable to find LLVM resource path" }; }
-    auto const &llvm_resource_path_str(llvm_resource_path.unwrap().string());
+    //auto const llvm_resource_path(find_llvm_resource_path());
+    //if(llvm_resource_path.is_none())
+    ///* TODO: Better error handling. */
+    //{ throw std::runtime_error{ "unable to find LLVM resource path" }; }
+    //auto const &llvm_resource_path_str(llvm_resource_path.unwrap().string());
 
     auto const include_path(jank_path / "../include");
 
-    auto const args
-    (
-      jank::util::make_array
-      (
-        "clang++", "-std=c++17",
-        "-DHAVE_CXX14=1", "-DIMMER_HAS_LIBGC=1",
-        "-include-pch", pch_path_str.c_str(),
-        "-isystem", include_path.c_str()
+    std::vector<char const*> args
+    {
+      //"clang++",
+      "-Xclang", "-emit-llvm-only",
+      "-std=gnu++17",
+      "-DHAVE_CXX14=1", "-DIMMER_HAS_LIBGC=1",
+      "-include-pch", pch_path_str.c_str(),
+      "-isystem", include_path.c_str()
 
-        //"-O0", "-ffast-math", "-march=native"
-      )
-    );
-    interpreter = std::make_unique<cling::Interpreter>(args.size(), args.data(), llvm_resource_path_str.c_str());
+      //"-O0", "-ffast-math", "-march=native"
+    };
+    //interpreter = std::make_unique<clang::Interpreter>(args.size(), args.data(), llvm_resource_path_str.c_str());
+    auto CI = llvm::cantFail(clang::IncrementalCompilerBuilder::create(args));
+    interpreter = llvm::cantFail(clang::Interpreter::create(std::move(CI)));
 
     /* TODO: Optimization >0 doesn't work with the latest Cling LLVM 13.
      * 1. https://github.com/root-project/cling/issues/483
@@ -101,21 +103,35 @@ namespace jank::jit
   (runtime::context &, codegen::processor &cg_prc) const
   {
     /* TODO: Improve Cling to accept string_views instead. */
-    interpreter->declare(static_cast<std::string>(cg_prc.declaration_str()));
+    //interpreter->declare(static_cast<std::string>(cg_prc.declaration_str()));
+    llvm::cantFail(interpreter->ParseAndExecute(static_cast<std::string>(cg_prc.declaration_str())));
 
-    auto const expr(cg_prc.expression_str(true, false));
+    auto const expr(cg_prc.expression_str(true));
     if(expr.empty())
     { return ok(none); }
 
-    cling::Value v;
-    auto const result(interpreter->evaluate(static_cast<std::string>(expr), v));
-    if(result != cling::Interpreter::CompilationResult::kSuccess)
+    /* TODO: Thread safety for the rest of the JIT processor needs to be ensured. */
+    static std::atomic<size_t> fn_id_counter{};
+    auto const fn_id(++fn_id_counter);
+    auto const fn_name(fmt::format("jank__jit__{}", fn_id));
+    auto const fn_body
+    (
+      fmt::format
+      (
+        "extern \"C\" jank::runtime::object_ptr {}(){{ return {}; }}",
+        fn_name,
+        expr
+      )
+    );
+
+    /* TODO: Undo this? */
+    auto fn_result(interpreter->ParseAndExecute(fn_body));
+    if(fn_result)
     { return err("compilation error"); }
 
-    auto * const ret_val(v.simplisticCastAs<runtime::object_ptr>());
-    return ok(ret_val);
+    return reinterpret_cast<runtime::object_ptr (*)()>(llvm::cantFail(interpreter->getSymbolAddress(fn_name)))();
   }
 
   void processor::eval_string(native_string const &s) const
-  { interpreter->process(static_cast<std::string>(s)); }
+  { llvm::cantFail(interpreter->ParseAndExecute(static_cast<std::string>(s))); }
 }

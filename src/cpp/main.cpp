@@ -1,8 +1,8 @@
 #include <iostream>
 #include <filesystem>
 
-#include <cling/Interpreter/Interpreter.h>
-#include <cling/Interpreter/Value.h>
+#include <clang/Interpreter/Interpreter.h>
+#include <llvm/Support/TargetSelect.h>
 
 #include <jank/util/mapped_file.hpp>
 #include <jank/read/lex.hpp>
@@ -23,6 +23,9 @@ int main(int const argc, char const **argv)
 
   //GC_enable();
   GC_enable_incremental();
+
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   char const *file{ argv[1] };

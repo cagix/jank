@@ -16,8 +16,7 @@
 #include <jank/analyze/processor.hpp>
 #include <jank/jit/processor.hpp>
 
-#include <cling/Interpreter/Interpreter.h>
-#include <cling/Interpreter/Value.h>
+#include <clang/Interpreter/Interpreter.h>
 
 /* This must go last; doctest and glog both define CHECK and family. */
 #include <doctest/doctest.h>

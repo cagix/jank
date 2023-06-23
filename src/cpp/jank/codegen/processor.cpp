@@ -723,11 +723,11 @@ namespace jank::codegen
     switch(expr.expr_type)
     {
       case analyze::expression_type::expression:
-      { return prc.expression_str(box_needed, false); }
+      { return prc.expression_str(box_needed); }
       case analyze::expression_type::return_statement:
       {
         auto body_inserter(std::back_inserter(body_buffer));
-        format_to(body_inserter, "return {};", prc.expression_str(box_needed, false));
+        format_to(body_inserter, "return {};", prc.expression_str(box_needed));
         return none;
       }
       /* Statement of a fn literal is a nop. */
@@ -1170,79 +1170,45 @@ namespace jank::codegen
     format_to(inserter, "}};");
   }
 
-  native_string processor::expression_str(bool const box_needed, bool const auto_call)
+  native_string processor::expression_str(bool const box_needed)
   {
     if(!generated_expression)
     {
       auto inserter(std::back_inserter(expression_buffer));
 
-      if(auto_call)
+      native_string_view close = ")";
+      if(box_needed)
       {
-        /* TODO: There's a Cling bug here which prevents us from returning the fn object itself,
-         * to be called in non-JIT code. If we call it here and return the result, it works fine. */
-        auto tmp_name(runtime::context::unique_string());
         format_to
         (
           inserter,
-          R"(
-            {0} {1}{{ *reinterpret_cast<jank::runtime::context*>({2})
-          )",
+          "jank::make_box<{0}>(std::ref(*reinterpret_cast<jank::runtime::context*>({1}))",
           runtime::munge(struct_name.name),
-          tmp_name,
           fmt::ptr(&rt_ctx)
-        );
-
-        for(auto const &arity : root_fn.arities)
-        {
-          for(auto const &v : arity.frame->captures)
-          { format_to(inserter, ", {0}", runtime::munge(v.first->name)); }
-        }
-
-        format_to(inserter, "}};");
-
-        format_to
-        (
-          inserter,
-          "{}.call();",
-          tmp_name
         );
       }
       else
       {
-        native_string_view close = ")";
-        if(box_needed)
-        {
-          format_to
-          (
-            inserter,
-            "jank::make_box<{0}>(std::ref(*reinterpret_cast<jank::runtime::context*>({1}))",
-            runtime::munge(struct_name.name),
-            fmt::ptr(&rt_ctx)
-          );
-        }
-        else
-        {
-          format_to
-          (
-            inserter,
-            "{0}{{ std::ref(*reinterpret_cast<jank::runtime::context*>({1}))",
-            runtime::munge(struct_name.name),
-            fmt::ptr(&rt_ctx)
-          );
-          close = "}";
-        }
-
-        for(auto const &arity : root_fn.arities)
-        {
-          for(auto const &v : arity.frame->captures)
-          { format_to(inserter, ", {0}", runtime::munge(v.first->name)); }
-        }
-
-        format_to(inserter, "{}", close);
+        format_to
+        (
+          inserter,
+          "{0}{{ std::ref(*reinterpret_cast<jank::runtime::context*>({1}))",
+          runtime::munge(struct_name.name),
+          fmt::ptr(&rt_ctx)
+        );
+        close = "}";
       }
 
-      generated_expression = true;
+      for(auto const &arity : root_fn.arities)
+      {
+        for(auto const &v : arity.frame->captures)
+        { format_to(inserter, ", {0}", runtime::munge(v.first->name)); }
+      }
+
+      format_to(inserter, "{}", close);
     }
+
+    generated_expression = true;
     return { expression_buffer.data(), expression_buffer.size() };
   }
 }

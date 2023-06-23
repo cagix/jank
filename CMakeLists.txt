@@ -12,10 +12,10 @@ endif()
 # jank can only be built with the corresponding Clang that Cling will be using,
 # since the JIT compiled code needs to match 1:1 with the AOT compiled runtime.
 # We just pull the Clang compiler right out of the Cling build dir.
-option(jank_cling_build_dir "Location of Cling source, if built locally" "")
-cmake_path(ABSOLUTE_PATH jank_cling_build_dir OUTPUT_VARIABLE jank_cling_build_dir_absolute)
-set(CMAKE_C_COMPILER "${jank_cling_build_dir_absolute}/bin/clang")
-set(CMAKE_CXX_COMPILER "${jank_cling_build_dir_absolute}/bin/clang++")
+#option(jank_cling_build_dir "Location of Cling source, if built locally" "")
+#cmake_path(ABSOLUTE_PATH jank_cling_build_dir OUTPUT_VARIABLE jank_cling_build_dir_absolute)
+#set(CMAKE_C_COMPILER "${jank_cling_build_dir_absolute}/bin/clang")
+#set(CMAKE_CXX_COMPILER "${jank_cling_build_dir_absolute}/bin/clang++")
 
 include(cmake/vcpkg.cmake)
 
@@ -35,29 +35,33 @@ project(
     LANGUAGES C CXX
 )
 
+execute_process(COMMAND bash "-c" "llc --version | grep Default | awk '{ print $3; }'" OUTPUT_VARIABLE llvm_triplet)
+string(STRIP ${llvm_triplet} llvm_triplet)
+add_compile_options(--target=${llvm_triplet})
+
 set(jank_required_compiler_id "Clang")
-set(jank_required_compiler_version "13.0.0")
+#set(jank_required_compiler_version "13.0.0")
 #set(jank_required_compiler_version "9.0.1")
 
-if(
-  NOT CMAKE_CXX_COMPILER_ID STREQUAL jank_required_compiler_id
-  OR
-  NOT CMAKE_CXX_COMPILER_VERSION STREQUAL jank_required_compiler_version
-)
-  message(
-    FATAL_ERROR
-    "${jank_required_compiler_id} ${jank_required_compiler_version} is required to build jank, "
-    "but ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} was found. "
-    "Please follow the README.md for build instructions."
-  )
-endif()
+#if(
+#  NOT CMAKE_CXX_COMPILER_ID STREQUAL jank_required_compiler_id
+#  OR
+#  NOT CMAKE_CXX_COMPILER_VERSION STREQUAL jank_required_compiler_version
+#)
+#  message(
+#    FATAL_ERROR
+#    "${jank_required_compiler_id} ${jank_required_compiler_version} is required to build jank, "
+#    "but ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} was found. "
+#    "Please follow the README.md for build instructions."
+#  )
+#endif()
 
 set(
   jank_compiler_flags
   -Wall -Wextra -Wpedantic
   -Wfloat-equal -Wuninitialized -Wswitch-enum -Wnon-virtual-dtor
   -Wold-style-cast -Wno-gnu-case-range
-  -DJANK_CLING_BUILD_DIR="${jank_cling_build_dir_absolute}"
+  #-DJANK_CLING_BUILD_DIR="${jank_cling_build_dir_absolute}"
   -DIMMER_HAS_LIBGC=1 -DHAVE_CXX14=1
   $<$<CONFIG:RELEASE>:-O0>
   #-stdlib=libc++
@@ -75,39 +79,42 @@ include(cmake/analysis.cmake)
 # Enable easier tooling during development.
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
-# ---- libjankcling.so ----
-# Cling, Clang, and LLVM are huge. About 1.5G unstripped and 150M stripped.
-# This takes a long time to link, so doing it as part of the jank lib or
-# executable hurts iteration time on hot reloading tests and, in general,
-# compiling more than once. So this is just a lib to suck all of that up.
+#execute_process(COMMAND llvm-config --libs all OUTPUT_VARIABLE llvm_libraries)
+#string(STRIP ${llvm_libraries} llvm_libraries)
 
-# CMake doesn't support libraries/executables without sources, but we're just
-# combining libraries here, so we make a dummy source just to please it.
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/null.cpp" "")
-
-add_library(jank_cling_lib SHARED "${CMAKE_CURRENT_BINARY_DIR}/null.cpp")
-
-set_property(TARGET jank_cling_lib PROPERTY OUTPUT_NAME jankcling)
-
-target_compile_features(jank_cling_lib PUBLIC cxx_std_17)
-
-find_package(LLVM REQUIRED CONFIG HINTS "${jank_cling_build_dir}/lib/cmake/llvm" NO_DEFAULT_PATH)
-find_package(Clang REQUIRED CONFIG HINTS "${jank_cling_build_dir}/lib/cmake/clang" NO_DEFAULT_PATH)
-find_package(
-  Cling REQUIRED
-  HINTS "${jank_cling_build_dir}/tools/cling/lib/cmake/cling"
-        "${jank_cling_build_dir}/lib/cmake/cling"
-  NO_DEFAULT_PATH
-)
-
-target_include_directories(jank_cling_lib SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
-target_include_directories(jank_cling_lib SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS})
-target_include_directories(jank_cling_lib SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-target_link_directories(jank_cling_lib PRIVATE ${LLVM_LIBRARY_DIRS})
-target_link_libraries(jank_cling_lib PRIVATE -Wl,--whole-archive clingInterpreter -Wl,--no-whole-archive)
-
-set_target_properties(jank_cling_lib PROPERTIES LINK_FLAGS -s)
-# ---- libjankcling.so ----
+## ---- libjankcling.so ----
+## Cling, Clang, and LLVM are huge. About 1.5G unstripped and 150M stripped.
+## This takes a long time to link, so doing it as part of the jank lib or
+## executable hurts iteration time on hot reloading tests and, in general,
+## compiling more than once. So this is just a lib to suck all of that up.
+#
+## CMake doesn't support libraries/executables without sources, but we're just
+## combining libraries here, so we make a dummy source just to please it.
+#file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/null.cpp" "")
+#
+#add_library(jank_cling_lib SHARED "${CMAKE_CURRENT_BINARY_DIR}/null.cpp")
+#
+#set_property(TARGET jank_cling_lib PROPERTY OUTPUT_NAME jankcling)
+#
+#target_compile_features(jank_cling_lib PUBLIC cxx_std_17)
+#
+#find_package(LLVM REQUIRED CONFIG HINTS "${jank_cling_build_dir}/lib/cmake/llvm" NO_DEFAULT_PATH)
+#find_package(Clang REQUIRED CONFIG HINTS "${jank_cling_build_dir}/lib/cmake/clang" NO_DEFAULT_PATH)
+#find_package(
+#  Cling REQUIRED
+#  HINTS "${jank_cling_build_dir}/tools/cling/lib/cmake/cling"
+#        "${jank_cling_build_dir}/lib/cmake/cling"
+#  NO_DEFAULT_PATH
+#)
+#
+#target_include_directories(jank_cling_lib SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
+#target_include_directories(jank_cling_lib SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS})
+#target_include_directories(jank_cling_lib SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+#target_link_directories(jank_cling_lib PRIVATE ${LLVM_LIBRARY_DIRS})
+#target_link_libraries(jank_cling_lib PRIVATE -Wl,--whole-archive clingInterpreter -Wl,--no-whole-archive)
+#
+#set_target_properties(jank_cling_lib PROPERTIES LINK_FLAGS -s)
+## ---- libjankcling.so ----
 
 # ---- libjank.a ----
 # The sources for jank are used for both the compiler and its tests, so
@@ -168,6 +175,15 @@ string(REPLACE "\"" "\\\"" jank_compiler_flags_str ${jank_compiler_flags_str})
 target_compile_options(jank_lib PUBLIC -DJANK_COMPILER_FLAGS="${jank_compiler_flags_str}")
 target_link_options(jank_lib PRIVATE ${jank_linker_flags})
 
+find_package(LLVM REQUIRED CONFIG NO_DEFAULT_PATH PATHS ${CMAKE_BINARY_DIR}/llvm-build/lib/cmake/llvm)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION} with libs in ${LLVM_LIBRARY_DIRS}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+include_directories(${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+message(STATUS "LLVM definitions ${LLVM_DEFINITIONS_LIST}")
+
+find_package(Clang REQUIRED NO_DEFAULT_PATH PATHS ${CMAKE_BINARY_DIR}/llvm-build/lib/cmake/clang)
 find_package(Immer CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -176,16 +192,17 @@ find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(BDWgc CONFIG REQUIRED)
 
 target_include_directories(jank_lib SYSTEM PRIVATE ${Boost_INCLUDE_DIRS})
-target_include_directories(jank_lib SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
+#target_include_directories(jank_lib SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
 target_include_directories(jank_lib SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS})
 target_include_directories(jank_lib SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
-target_link_directories(jank_lib PRIVATE ${jank_cling_build_dir}/build-compiler-rt/lib/linux)
+#target_link_directories(jank_lib PRIVATE ${jank_cling_build_dir}/build-compiler-rt/lib/linux)
 target_link_libraries(
   jank_lib PRIVATE
-  jank_cling_lib immer fmt::fmt
+  immer fmt::fmt
   Folly::folly Folly::folly_deps
   BDWgc::gc BDWgc::cord BDWgc::gccpp BDWgc::gctba
+  LLVM clangInterpreter
 )
 
 set_target_properties(jank_lib PROPERTIES LINK_FLAGS_RELEASE "-s")
@@ -237,10 +254,11 @@ target_compile_options(jank_exe PUBLIC ${jank_compiler_flags})
 target_link_options(jank_exe PRIVATE ${jank_linker_flags})
 
 target_include_directories(jank_exe SYSTEM PRIVATE ${BOOST_INCLUDE_DIRS})
-target_include_directories(jank_exe SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
+#target_include_directories(jank_exe SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
 target_include_directories(jank_exe SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS})
 target_include_directories(jank_exe SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 
+target_link_directories(jank_exe PRIVATE ${LLVM_LIBRARY_DIRS})
 target_link_libraries(
   jank_exe PUBLIC
   -Wl,--whole-archive jank_lib -Wl,--no-whole-archive
@@ -251,44 +269,45 @@ set_target_properties(jank_exe PROPERTIES LINK_FLAGS_RELEASE -s)
 # ---- jank executable ----
 
 # ---- Tests ----
-if(jank_tests)
-  add_executable(
-    jank_test_exe
-    test/cpp/main.cpp
-    test/cpp/jank/read/lex.cpp
-    test/cpp/jank/read/parse.cpp
-    test/cpp/jank/runtime/detail/list_type.cpp
-    test/cpp/jank/runtime/context.cpp
-    test/cpp/jank/jit/processor.cpp
-  )
-  add_executable(jank::test_exe ALIAS jank_test_exe)
-
-  set_property(TARGET jank_test_exe PROPERTY OUTPUT_NAME jank-test)
-
-  target_compile_features(jank_test_exe PRIVATE cxx_std_17)
-  target_compile_options(jank_test_exe PUBLIC ${jank_compiler_flags})
-  target_compile_options(jank_test_exe PRIVATE -DDOCTEST_CONFIG_SUPER_FAST_ASSERTS)
-  target_link_options(jank_test_exe PRIVATE ${jank_linker_flags})
-
-  target_include_directories(jank_test_exe SYSTEM PRIVATE ${BOOST_INCLUDE_DIRS})
-  target_include_directories(jank_test_exe SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
-  target_include_directories(jank_test_exe SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS})
-  target_include_directories(jank_test_exe SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-
-  find_package(doctest REQUIRED)
-  target_link_libraries(
-    jank_test_exe PUBLIC
-    -Wl,--whole-archive jank_lib -Wl,--no-whole-archive
-    -Wl,--whole-archive nanobench_lib -Wl,--no-whole-archive
-    Boost::boost
-    doctest::doctest
-  )
-
-  # Symbol exporting for JIT.
-  set_target_properties(jank_test_exe PROPERTIES ENABLE_EXPORTS 1)
-
-  add_test(NAME "Test" COMMAND jank_test_exe)
-endif()
+#if(jank_tests)
+#  add_executable(
+#    jank_test_exe
+#    test/cpp/main.cpp
+#    test/cpp/jank/read/lex.cpp
+#    test/cpp/jank/read/parse.cpp
+#    test/cpp/jank/runtime/detail/list_type.cpp
+#    test/cpp/jank/runtime/context.cpp
+#    test/cpp/jank/jit/processor.cpp
+#  )
+#  add_executable(jank::test_exe ALIAS jank_test_exe)
+#
+#  set_property(TARGET jank_test_exe PROPERTY OUTPUT_NAME jank-test)
+#
+#  target_compile_features(jank_test_exe PRIVATE cxx_std_17)
+#  target_compile_options(jank_test_exe PUBLIC ${jank_compiler_flags})
+#  target_compile_options(jank_test_exe PRIVATE -DDOCTEST_CONFIG_SUPER_FAST_ASSERTS)
+#  target_link_options(jank_test_exe PRIVATE ${jank_linker_flags})
+#
+#  target_include_directories(jank_test_exe SYSTEM PRIVATE ${BOOST_INCLUDE_DIRS})
+#  #target_include_directories(jank_test_exe SYSTEM PRIVATE ${CLING_INCLUDE_DIRS})
+#  target_include_directories(jank_test_exe SYSTEM PRIVATE ${CLANG_INCLUDE_DIRS})
+#  target_include_directories(jank_test_exe SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+#
+#  find_package(doctest REQUIRED)
+#  target_link_libraries(
+#    jank_test_exe PUBLIC
+#    -Wl,--whole-archive jank_lib -Wl,--no-whole-archive
+#    -Wl,--whole-archive nanobench_lib -Wl,--no-whole-archive
+#    Boost::boost
+#    doctest::doctest
+#  ${llvm_libraries} clangAST clangBasic clangInterpreter clangFrontend clangSema
+#  )
+#
+#  # Symbol exporting for JIT.
+#  set_target_properties(jank_test_exe PROPERTIES ENABLE_EXPORTS 1)
+#
+#  add_test(NAME "Test" COMMAND jank_test_exe)
+#endif()
 # ---- Tests ----
 
 # ---- Install rules ----

@@ -8,11 +8,14 @@ include="${1}"
 shift
 flags=$*
 
+target="$(llc --version | grep Default | awk '{ print $3; }')"
+
 # shellcheck disable=SC2086
 "${here}/clang++" -I "${include}" \
                   -I "${include}/cpp" \
                   ${flags} \
                   -std=gnu++17 \
+                  -target "${target}" \
                   -w \
                   -fpch-instantiate-templates \
                   -emit-pch \
