@@ -32,6 +32,8 @@ namespace jank::runtime
     , output_dir{ opts.compilation_path }
     , module_loader{ *this, opts.class_path }
   {
+    profile::timer timer{ "rt ctx ctor" };
+
     auto const core(intern_ns(make_box<obj::symbol>("clojure.core")));
     auto const ns_sym(make_box<obj::symbol>("clojure.core/*ns*"));
     current_ns_var = core->intern_var(ns_sym);
@@ -289,6 +291,7 @@ namespace jank::runtime
                               std::make_pair(compile_files_var, obj::boolean::true_const()),
                               std::make_pair(current_module_var, make_box(module))) };
 
+    /* TODO: After loading, compile the generated files into a pcm. */
     return load_module(fmt::format("/{}", module));
   }
 

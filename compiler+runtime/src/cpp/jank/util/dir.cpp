@@ -88,6 +88,7 @@ namespace jank::util
       return res;
     }
 
+    /* TODO: Feed in optimization flags and AOT build flags. */
     auto const input(
       fmt::format("{}.{}.{}", JANK_VERSION, clang::getClangRevision(), JANK_JIT_FLAGS));
     res = fmt::format("{}-{}", llvm::sys::getDefaultTargetTriple(), util::sha256(input));

@@ -214,6 +214,8 @@ namespace jank::runtime::module
   void register_directory(native_unordered_map<native_persistent_string, loader::entry> &entries,
                           boost::filesystem::path const &path)
   {
+    profile::timer timer{ fmt::format("loader register directory {}", path.string()) };
+
     for(auto const &f : boost::filesystem::recursive_directory_iterator{ path })
     {
       if(boost::filesystem::is_regular_file(f))
@@ -226,6 +228,8 @@ namespace jank::runtime::module
   void register_jar(native_unordered_map<native_persistent_string, loader::entry> &entries,
                     native_persistent_string_view const &path)
   {
+    profile::timer timer{ "loader register jar" };
+
     libzippp::ZipArchive zf{ std::string{ path } };
     auto success(zf.open(libzippp::ZipArchive::ReadOnly));
     if(!success)
@@ -275,7 +279,9 @@ namespace jank::runtime::module
   loader::loader(context &rt_ctx, native_persistent_string_view const &ps)
     : rt_ctx{ rt_ctx }
   {
-    auto const jank_path(jank::util::process_location().unwrap().parent_path());
+    profile::timer timer{ "module loader ctor" };
+
+    auto const jank_path(util::process_location().unwrap().parent_path());
     native_transient_string paths{ ps };
     paths += fmt::format(":{}", (jank_path / "classes").string());
     paths += fmt::format(":{}", (jank_path / "../src/jank").string());

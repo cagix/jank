@@ -33,7 +33,9 @@ namespace jank
 
     {
       profile::timer timer{ "require clojure.core" };
-      __rt_ctx->load_module("/clojure.core").expect_ok();
+      //__rt_ctx->load_module("/clojure.core").expect_ok();
+      __rt_ctx->jit_prc.load_shared_library("clojure.core.so");
+      __rt_ctx->jit_prc.eval_string("import clojure.core; clojure::core::__ns{}.call();");
     }
 
     {
@@ -175,7 +177,7 @@ namespace jank
 
     {
       profile::timer timer{ "require clojure.core" };
-      __rt_ctx->load_module("/clojure.core").expect_ok();
+      //__rt_ctx->load_module("/clojure.core").expect_ok();
     }
 
     if(!opts.target_module.empty())
@@ -237,14 +239,6 @@ try
   GC_set_all_interior_pointers(1);
   GC_enable();
 
-  llvm::llvm_shutdown_obj Y{};
-
-  llvm::InitializeAllTargetInfos();
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
-
   auto const parse_result(util::cli::parse(argc, argv));
   if(parse_result.is_err())
   {
@@ -259,6 +253,13 @@ try
 
   profile::configure(opts);
   profile::timer timer{ "main" };
+
+  llvm::llvm_shutdown_obj llvm_cleanup{};
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
 
   __rt_ctx = new(GC) runtime::context{ opts };
 

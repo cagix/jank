@@ -33,6 +33,7 @@ namespace jank::jit
 
   option<boost::filesystem::path> find_pch()
   {
+    profile::timer timer{ "jit find_pch" };
     auto const jank_path(util::process_location().unwrap().parent_path());
 
     auto dev_path(jank_path / "incremental.pch");
@@ -52,6 +53,7 @@ namespace jank::jit
 
   option<boost::filesystem::path> build_pch()
   {
+    profile::timer timer{ "jit build_pch" };
     auto const jank_path(util::process_location().unwrap().parent_path());
     auto const script_path(jank_path / "build-pch");
     auto const include_path(jank_path / "../include");
@@ -132,20 +134,23 @@ namespace jank::jit
     }
     args.emplace_back(strdup(O.data()));
     /* We need to include our special incremental PCH. */
-    args.emplace_back("-include-pch");
-    args.emplace_back(strdup(pch_path_str.c_str()));
+    //args.emplace_back("-include-pch");
+    //args.emplace_back(strdup(pch_path_str.c_str()));
+    args.emplace_back("-fprebuilt-module-path=.");
 
     //fmt::println("jit flags {}", JANK_JIT_FLAGS);
 
-    clang::IncrementalCompilerBuilder compiler_builder;
-    compiler_builder.SetCompilerArgs(args);
-    auto compiler_instance(llvm::cantFail(compiler_builder.CreateCpp()));
-    llvm::install_fatal_error_handler(handle_fatal_llvm_error,
-                                      static_cast<void *>(&compiler_instance->getDiagnostics()));
+    {
+      profile::timer timer{ "jit interpreter" };
+      clang::IncrementalCompilerBuilder compiler_builder;
+      compiler_builder.SetCompilerArgs(args);
+      auto compiler_instance(llvm::cantFail(compiler_builder.CreateCpp()));
+      llvm::install_fatal_error_handler(handle_fatal_llvm_error,
+                                        static_cast<void *>(&compiler_instance->getDiagnostics()));
 
-    compiler_instance->LoadRequestedPlugins();
-
-    interpreter = llvm::cantFail(clang::Interpreter::create(std::move(compiler_instance)));
+      compiler_instance->LoadRequestedPlugins();
+      interpreter = llvm::cantFail(clang::Interpreter::create(std::move(compiler_instance)));
+    }
   }
 
   processor::~processor()
@@ -196,5 +201,14 @@ namespace jank::jit
     //fmt::println("// eval_string:\n{}\n", s);
     auto err(interpreter->ParseAndExecute({ s.data(), s.size() }));
     llvm::logAllUnhandledErrors(std::move(err), llvm::errs(), "error: ");
+  }
+
+  void processor::load_shared_library(native_persistent_string const &path) const
+  {
+    profile::timer timer{ "jit load shared library" };
+    if(auto err = interpreter->LoadDynamicLibrary(path.c_str()))
+    {
+      llvm::logAllUnhandledErrors(std::move(err), llvm::errs(), "error: ");
+    }
   }
 }

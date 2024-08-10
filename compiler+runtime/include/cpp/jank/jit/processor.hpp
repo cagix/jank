@@ -22,7 +22,7 @@ namespace jank::jit
     result<option<runtime::object_ptr>, native_persistent_string>
     eval(codegen::processor &cg_prc) const;
     void eval_string(native_persistent_string const &s) const;
-    void load_object(native_persistent_string_view const &path) const;
+    void load_shared_library(native_persistent_string const &path) const;
 
     std::unique_ptr<clang::Interpreter> interpreter;
     native_integer optimization_level{};
