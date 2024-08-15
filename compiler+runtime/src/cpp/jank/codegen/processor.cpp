@@ -1497,21 +1497,6 @@ namespace jank::codegen
     return ret_tmp;
   }
 
-  option<handle> processor::gen(analyze::expr::throw_<analyze::expression> const &expr,
-                                analyze::expr::function_arity<analyze::expression> const &fn_arity,
-                                native_bool const)
-  {
-    auto inserter(std::back_inserter(body_buffer));
-    auto const &value_tmp(gen(expr.value, fn_arity, true));
-    /* We static_cast to object_ptr here, since we'll be trying to catch an object_ptr in any
-     * try/catch forms. This loses us our type info, but C++ doesn't do implicit conversions
-     * when catching and we're not using inheritance. */
-    fmt::format_to(inserter,
-                   "throw static_cast<jank::runtime::object_ptr>({});",
-                   value_tmp.unwrap().str(true));
-    return none;
-  }
-
   option<handle> processor::gen(analyze::expr::try_<analyze::expression> const &expr,
                                 analyze::expr::function_arity<analyze::expression> const &fn_arity,
                                 native_bool const box_needed)
@@ -1607,20 +1592,14 @@ namespace jank::codegen
          * attribute to the lambda. This is further complicated by [[noreturn]] on lambdas not
          * actually being standard, so we need to rely on GCC-style extensions to do it. */
         auto const &chunk_expr(boost::get<analyze::expression_ptr>(chunk));
-        auto const noreturn(
-          boost::get<analyze::expr::throw_<analyze::expression>>(&chunk_expr->data) != nullptr);
-
-        fmt::format_to(inserter, "[&](){}{{ ", (noreturn ? "__attribute__((__noreturn__))" : ""));
+        fmt::format_to(inserter, "[&]() -> jank::runtime::object_ptr {{ ");
 
         auto const &handle(gen(chunk_expr, fn_arity, true));
         if(handle.is_some())
         {
           fmt::format_to(inserter, " return {};", handle.unwrap().str(true));
         }
-        else if(!noreturn)
-        {
-          fmt::format_to(inserter, "; return jank::runtime::obj::nil::nil_const();");
-        }
+        fmt::format_to(inserter, "; return jank::runtime::obj::nil::nil_const();");
         fmt::format_to(inserter, ";}}()");
       }
     }

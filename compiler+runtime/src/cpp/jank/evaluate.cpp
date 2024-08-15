@@ -446,13 +446,6 @@ namespace jank::evaluate
 
   object_ptr eval(context &rt_ctx,
                   jit::processor const &jit_prc,
-                  analyze::expr::throw_<analyze::expression> const &expr)
-  {
-    throw eval(rt_ctx, jit_prc, expr.value);
-  }
-
-  object_ptr eval(context &rt_ctx,
-                  jit::processor const &jit_prc,
                   analyze::expr::try_<analyze::expression> const &expr)
   {
     return dynamic_call(eval(rt_ctx, jit_prc, wrap_expression(expr)));

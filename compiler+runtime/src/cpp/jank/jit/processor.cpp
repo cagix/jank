@@ -87,19 +87,6 @@ namespace jank::jit
     /* TODO: Pass this into each fn below so we only do this once on startup. */
     auto const jank_path(util::process_location().unwrap().parent_path());
 
-    auto pch_path(find_pch());
-    if(pch_path.is_none())
-    {
-      pch_path = build_pch();
-
-      /* TODO: Better error handling. */
-      if(pch_path.is_none())
-      {
-        throw std::runtime_error{ "unable to find and also unable to build PCH" };
-      }
-    }
-    auto const &pch_path_str(pch_path.unwrap().string());
-
     auto const include_path(jank_path / "../include");
 
     native_persistent_string_view O{ "-O0" };

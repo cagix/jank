@@ -43,7 +43,6 @@ namespace jank::analyze
       {         make_box<symbol>("if"),         make_fn(&processor::analyze_if) },
       {      make_box<symbol>("quote"),      make_fn(&processor::analyze_quote) },
       {        make_box<symbol>("var"),   make_fn(&processor::analyze_var_call) },
-      {      make_box<symbol>("throw"),      make_fn(&processor::analyze_throw) },
       {        make_box<symbol>("try"),        make_fn(&processor::analyze_try) },
       { make_box<symbol>("native/raw"), make_fn(&processor::analyze_native_raw) },
     };
@@ -938,31 +937,6 @@ namespace jank::analyze
       expression_base{ {}, expr_type, current_frame, true },
       qualified_sym,
       o
-    });
-  }
-
-  processor::expression_result
-  processor::analyze_throw(runtime::obj::persistent_list_ptr const &o,
-                           local_frame_ptr &current_frame,
-                           expression_type const expr_type,
-                           option<expr::function_context_ptr> const &fn_ctx,
-                           native_bool const)
-  {
-    if(o->count() != 2)
-    {
-      return err(error{ "invalid throw: expects one argument" });
-    }
-
-    auto const arg(o->data.rest().first().unwrap());
-    auto arg_expr(analyze(arg, current_frame, expression_type::expression, fn_ctx, true));
-    if(arg_expr.is_err())
-    {
-      return arg_expr.expect_err_move();
-    }
-
-    return make_box<expression>(expr::throw_<expression>{
-      expression_base{ {}, expr_type, current_frame, true },
-      arg_expr.unwrap_move()
     });
   }
 

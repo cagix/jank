@@ -41,7 +41,6 @@ namespace jank::analyze
                                       expr::let<E>,
                                       expr::do_<E>,
                                       expr::if_<E>,
-                                      expr::throw_<E>,
                                       expr::try_<E>,
                                       expr::native_raw<E>>;
 
