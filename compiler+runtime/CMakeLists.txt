@@ -466,7 +466,7 @@ set(jank_incremental_pch_flag ${CMAKE_BINARY_DIR}/incremental.pch)
 add_custom_command(
   DEPENDS ${CMAKE_BINARY_DIR}/jank ${CMAKE_SOURCE_DIR}/bin/build-pch
   OUTPUT ${jank_incremental_pch_flag}
-  COMMAND "${CMAKE_SOURCE_DIR}/bin/build-pch" "${CLANG_INSTALL_PREFIX}" "${CMAKE_SOURCE_DIR}/include" "${jank_incremental_pch_flag}" "${jank_pch_compile_flags_str}" "${jank_lib_includes_str}"
+  #COMMAND "${CMAKE_SOURCE_DIR}/bin/build-pch" "${CLANG_INSTALL_PREFIX}" "${CMAKE_SOURCE_DIR}/include" "${jank_incremental_pch_flag}" "${jank_pch_compile_flags_str}" "${jank_lib_includes_str}"
 )
 add_custom_target(
   jank_incremental_pch
@@ -489,7 +489,7 @@ add_custom_command(
   # TODO: Depend on jank's actual PCH.
   DEPENDS ${CMAKE_BINARY_DIR}/jank ${CMAKE_SOURCE_DIR}/src/jank/clojure/core.jank ${jank_incremental_pch_flag}
   OUTPUT ${jank_core_libraries_flag}
-  COMMAND ${CMAKE_BINARY_DIR}/jank compile clojure.core
+  #COMMAND ${CMAKE_BINARY_DIR}/jank compile clojure.core
   COMMAND mkdir -p ${CMAKE_BINARY_DIR}/classes; touch ${jank_core_libraries_flag}
 )
 add_custom_target(
