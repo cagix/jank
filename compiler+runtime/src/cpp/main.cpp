@@ -116,7 +116,9 @@ namespace jank
 
     {
       profile::timer timer{ "require clojure.core" };
-      __rt_ctx->load_module("/clojure.core").expect_ok();
+      //__rt_ctx->load_module("/clojure.core").expect_ok();
+      __rt_ctx->jit_prc.load_shared_library("clojure.core.so");
+      __rt_ctx->jit_prc.eval_string("import clojure.core; clojure::core::__ns{}.call();");
     }
 
     if(!opts.target_module.empty())
@@ -178,6 +180,8 @@ namespace jank
     {
       profile::timer timer{ "require clojure.core" };
       //__rt_ctx->load_module("/clojure.core").expect_ok();
+      __rt_ctx->jit_prc.load_shared_library("clojure.core.so");
+      __rt_ctx->jit_prc.eval_string("import clojure.core; clojure::core::__ns{}.call();");
     }
 
     if(!opts.target_module.empty())

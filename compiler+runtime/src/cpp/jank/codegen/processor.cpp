@@ -1497,61 +1497,6 @@ namespace jank::codegen
     return ret_tmp;
   }
 
-  option<handle> processor::gen(analyze::expr::try_<analyze::expression> const &expr,
-                                analyze::expr::function_arity<analyze::expression> const &fn_arity,
-                                native_bool const box_needed)
-  {
-    auto inserter(std::back_inserter(body_buffer));
-    auto const ret_tmp(runtime::munge(runtime::context::unique_string("try")));
-    fmt::format_to(inserter, "object_ptr {}{{ obj::nil::nil_const() }};", ret_tmp);
-
-    fmt::format_to(inserter, "{{");
-    if(expr.finally_body.is_some())
-    {
-      fmt::format_to(inserter, "jank::util::scope_exit const finally{{ [&](){{ ");
-      gen(expr.finally_body.unwrap(), fn_arity, box_needed);
-      fmt::format_to(inserter, "}} }};");
-    }
-
-    fmt::format_to(inserter, "try {{");
-    auto const &body_tmp(gen(expr.body, fn_arity, box_needed));
-    if(body_tmp.is_some())
-    {
-      fmt::format_to(inserter, "{} = {};", ret_tmp, body_tmp.unwrap().str(box_needed));
-    }
-    if(expr.expr_type == analyze::expression_type::return_statement)
-    {
-      fmt::format_to(inserter, "return {};", ret_tmp);
-    }
-    fmt::format_to(inserter, "}}");
-
-    /* There's a gotcha here, tied to how we throw exceptions. We're catching an object_ptr, which
-     * means we need to be throwing an object_ptr. Since we're not using inheritance, we can't
-     * rely on a catch-all and C++ doesn't do implicit conversions into catch types. So, if we
-     * throw a persistent_string_ptr, for example, it will not be caught as an object_ptr.
-     *
-     * We mitigate this by ensuring during the codegen for throw that we type-erase to
-     * an object_ptr.
-     */
-    fmt::format_to(inserter,
-                   "catch(jank::runtime::object_ptr const {}) {{",
-                   runtime::munge(expr.catch_body.sym->name));
-    auto const &catch_tmp(gen(expr.catch_body.body, fn_arity, box_needed));
-    if(catch_tmp.is_some())
-    {
-      fmt::format_to(inserter, "{} = {};", ret_tmp, catch_tmp.unwrap().str(box_needed));
-    }
-    if(expr.expr_type == analyze::expression_type::return_statement)
-    {
-      fmt::format_to(inserter, "return {};", ret_tmp);
-    }
-    fmt::format_to(inserter, "}}");
-
-    fmt::format_to(inserter, "}}");
-
-    return ret_tmp;
-  }
-
   option<handle> processor::gen(analyze::expr::native_raw<analyze::expression> const &expr,
                                 analyze::expr::function_arity<analyze::expression> const &fn_arity,
                                 native_bool const)
