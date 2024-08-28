@@ -1,0 +1,10 @@
+#/usr/bin/env bash
+
+set -euo pipefail
+
+export CC=$PWD/build/llvm-install/usr/local/bin/clang
+export CXX=$PWD/build/llvm-install/usr/local/bin/clang++
+
+$CXX -std=gnu++20 -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1 -DFMT_HEADER_ONLY=1 -DJANK_DEBUG -w -isystem /home/jeaye/projects/jank/compiler+runtime/build/llvm-install/usr/local/include -isystem /home/jeaye/projects/jank/compiler+runtime/build/llvm-install/usr/local/include -I/home/jeaye/projects/jank/compiler+runtime/include/cpp -I/home/jeaye/projects/jank/compiler+runtime/third-party/nanobench/include -I/home/jeaye/projects/jank/compiler+runtime/third-party/folly -I/home/jeaye/projects/jank/compiler+runtime/third-party/bpptree/include -isystem /home/jeaye/projects/jank/compiler+runtime/build/vcpkg_installed/x64-clang-static/include -isystem '/home/jeaye/projects/jank/compiler+runtime/build/llvm-install/usr/local/include\' -I /home/jeaye/projects/jank/compiler+runtime/include -I /home/jeaye/projects/jank/compiler+runtime/include/cpp -Xclang -fincremental-extensions clojure.core.cppm --precompile -o clojure.core.pcm -include-pch build/incremental.pch
+
+$CXX -std=gnu++20 -DIMMER_HAS_LIBGC=1 -DIMMER_TAGGED_NODE=0 -DHAVE_CXX14=1 -DFMT_HEADER_ONLY=1 -DJANK_DEBUG -w -isystem /home/jeaye/projects/jank/compiler+runtime/build/llvm-install/usr/local/include -isystem /home/jeaye/projects/jank/compiler+runtime/build/llvm-install/usr/local/include -I/home/jeaye/projects/jank/compiler+runtime/include/cpp -I/home/jeaye/projects/jank/compiler+runtime/third-party/nanobench/include -I/home/jeaye/projects/jank/compiler+runtime/third-party/folly -I/home/jeaye/projects/jank/compiler+runtime/third-party/bpptree/include -isystem /home/jeaye/projects/jank/compiler+runtime/build/vcpkg_installed/x64-clang-static/include -isystem '/home/jeaye/projects/jank/compiler+runtime/build/llvm-install/usr/local/include\' -I /home/jeaye/projects/jank/compiler+runtime/include -I /home/jeaye/projects/jank/compiler+runtime/include/cpp -Xclang -fincremental-extensions -shared -fPIC clojure.core.pcm -o clojure.core.so
